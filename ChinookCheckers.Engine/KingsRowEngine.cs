@@ -7,6 +7,14 @@ public sealed class KingsRowEngine: IDisposable
     // Chinook/KingsRow endgame databases cover up to 8 pieces.
     private const int TablebasePieces = 8;
 
+    private static readonly string[] WarmUpPositions =
+    [
+        "W:W29:B4",
+        "B:W29:B4,K12",
+        "W:W22,23,24:BK1,K5,K14",
+        "W:W22,23,24,25,26:B1,2,3,K12,K13"
+    ];
+
     private readonly KingsRowNative _native;
 
     public KingsRowEngine(string dllPath)
@@ -38,12 +46,18 @@ public sealed class KingsRowEngine: IDisposable
         RequireCommand($"set dbmbytes {dbMbytes}");
     }
 
-    // The endgame databases are initialized by the first search (several seconds), so do it before serving requests.
+    // The endgame databases are initialized by the first search (several seconds) and their blocks are read
+    // lazily, so run a forced move plus a few endgame lookups before serving requests.
     public void WarmUp()
     {
         Span<int> board = stackalloc int[64];
-        Position.Parse("W:W29:B4").WriteToBoard(board);
-        GetMoveRaw(board, (int)Side.White, 0.1);
+
+        foreach (var pdn in WarmUpPositions)
+        {
+            board.Clear();
+            Position.Parse(pdn).WriteToBoard(board);
+            GetMoveRaw(board, (int)Position.Parse(pdn).SideToMove, 0.05);
+        }
     }
 
     public string Name() => RequireCommand("name");

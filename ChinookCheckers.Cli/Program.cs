@@ -104,6 +104,23 @@ Section("8. Stability: 20 repeated calls");
     Check("20 identical forced-move calls give the same answer", ok);
 }
 
+Section("9. SearchAsync (tablebase hit and strong level)");
+{
+    engine.WarmUp();
+
+    var sw = Stopwatch.StartNew();
+    var tb = await engine.SearchAsync(Position.Parse("B:W29:B4,K12"), new SearchLimits(12, 30, 45));
+    sw.Stop();
+    Check("3 pieces: tablebase hit under 50 ms", tb.TablebaseHit && sw.ElapsedMilliseconds < 50,
+        $"hit={tb.TablebaseHit} wdl={tb.ScoreOrWdl} best={tb.BestMove} {sw.ElapsedMilliseconds} ms");
+
+    sw.Restart();
+    var strong = await engine.SearchAsync(Position.Parse(midgame), new SearchLimits(18, 450, 550));
+    sw.Stop();
+    Check("middlegame strong: move under 600 ms, no tablebase", strong.BestMove.Length > 0 && !strong.TablebaseHit && sw.ElapsedMilliseconds < 600,
+        $"best={strong.BestMove} depth={strong.Depth} nodes={strong.Nodes} pv={string.Join(" ", strong.Pv)} {sw.ElapsedMilliseconds} ms");
+}
+
 Console.WriteLine($"\nFailures: {failures}");
 return failures == 0 ? 0 : 1;
 
