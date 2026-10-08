@@ -19,6 +19,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\ChinookCheckers.Engine\ChinookCheckers.Engine.csproj" />
+      <ProjectReference Include="..\ChinookCheckers.Api\ChinookCheckers.Api.csproj" />
     </ItemGroup>
 
 </Project>
