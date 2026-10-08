@@ -98,6 +98,23 @@ public sealed class Position
         return position;
     }
 
+    /// <summary>Returns the position after the move: captured pieces removed, promotion applied, side flipped.</summary>
+    public Position Apply(Move move)
+    {
+        var next = new Position { SideToMove = SideToMove.Opposite() };
+        Array.Copy(_squares, next._squares, _squares.Length);
+
+        var piece = this[move.From];
+        next[move.From] = Cell.Free;
+        foreach (var square in move.Captured) next[square] = Cell.Free;
+
+        if (piece.IsMan() && Board.IsPromotionRow(SideToMove, move.To))
+            piece = (piece & ~Cell.Man) | Cell.King;
+
+        next[move.To] = piece;
+        return next;
+    }
+
     public string ToPdnString()
     {
         return $"{SideToMove.ToPdnString()}:{FormatPieces(Cell.White)}:{FormatPieces(Cell.Black)}";
