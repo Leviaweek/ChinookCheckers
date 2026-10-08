@@ -37,6 +37,7 @@ public static class Levels
         if (soft < 1 || hard < 1 || depth < 1)
             throw new ApiException(422, "Limits must be positive.");
 
-        return new SearchLimits(depth, soft, Math.Max(hard, soft));
+        // A short hard limit also shortens the soft one: the search must not be asked to run longer than it is allowed.
+        return new SearchLimits(depth, Math.Min(soft, hard), hard);
     }
 }

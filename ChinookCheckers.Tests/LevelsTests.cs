@@ -31,6 +31,14 @@ public class LevelsTests
     }
 
     [Fact]
+    public void TestLimitsFor_HardShorterThanSoft_ShortensSoft()
+    {
+        var limits = Levels.LimitsFor("strong", new SuggestLimits(null, null, 20));
+
+        Assert.Equal((20, 20), (limits.SoftTimeMs, limits.HardTimeMs));
+    }
+
+    [Fact]
     public void TestNormalize_UnknownLevel_Throws422()
     {
         var error = Assert.Throws<ApiException>(() => Levels.Normalize("godlike"));
