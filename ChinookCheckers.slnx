@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="ChinookCheckers.Api/ChinookCheckers.Api.csproj" />
   <Project Path="ChinookCheckers.Cli\ChinookCheckers.Cli.csproj" />
   <Project Path="ChinookCheckers.Engine\ChinookCheckers.Engine.csproj" />
   <Project Path="ChinookCheckers.Tests/ChinookCheckers.Tests.csproj" />
