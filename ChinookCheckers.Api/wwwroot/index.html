@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkers Board</title>
+<style>
+:root { --bg:#f4f1ea; --fg:#222; --light:#e8dcc2; --dark:#7a5a3a; --white:#fafafa; --black:#1c1c1c; --ring:#888;
+        --from:#2e9e4f; --to:#d9a400; --cap:#d33; --card:#fff; --border:#ccc; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg:#16181b; --fg:#e8e8e8; --light:#4a4034; --dark:#2c2118; --ring:#aaa; --card:#22252a; --border:#444; }
+}
+body { margin:0; padding:16px; background:var(--bg); color:var(--fg); font:16px/1.4 system-ui, sans-serif; }
+main { max-width:520px; margin:0 auto; display:grid; gap:12px; }
+h1 { font-size:1.2rem; margin:0; }
+#board { display:grid; grid-template-columns:repeat(8, 1fr); aspect-ratio:1; border:2px solid var(--border); }
+#board > * { display:flex; align-items:center; justify-content:center; padding:0; border:0; min-width:0; position:relative; }
+.l { background:var(--light); }
+.d { background:var(--dark); cursor:pointer; color:#fff8; font-size:.65rem; }
+.d .n { position:absolute; top:1px; left:3px; }
+.d:focus-visible { outline:3px solid var(--to); outline-offset:-3px; }
+.d.from { box-shadow:inset 0 0 0 4px var(--from); }
+.d.to   { box-shadow:inset 0 0 0 4px var(--to); }
+.d.via  { box-shadow:inset 0 0 0 4px var(--to); opacity:.9; }
+.d.cap  { box-shadow:inset 0 0 0 4px var(--cap); }
+.p { width:72%; height:72%; border-radius:50%; border:2px solid var(--ring); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1rem; }
+.p.w { background:var(--white); color:#555; }
+.p.b { background:var(--black); color:#ddd; }
+.row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+button, select, input { font:inherit; padding:6px 10px; color:var(--fg); background:var(--card); border:1px solid var(--border); border-radius:6px; }
+button { cursor:pointer; }
+#pdn { flex:1; min-width:0; }
+#out { background:var(--card); border:1px solid var(--border); border-radius:6px; padding:8px 12px; white-space:pre-wrap; word-break:break-word; min-height:3em; }
+#out.err { color:var(--cap); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Checkers board → /v1/move/suggest</h1>
+  <div id="board" role="grid" aria-label="Checkers board"></div>
+  <div class="row">
+    <label>Side to move <select id="side"><option value="W">White</option><option value="B">Black</option></select></label>
+    <label>Level <select id="level"><option>weak</option><option selected>medium</option><option>strong</option></select></label>
+  </div>
+  <div class="row">
+    <button id="start" type="button">Start position</button>
+    <button id="clear" type="button">Clear</button>
+    <button id="suggest" type="button">Suggest</button>
+  </div>
+  <div class="row">
+    <input id="pdn" aria-label="Position in PDN" placeholder="B:W18,19,K22:B1,5" spellcheck="false">
+    <button id="load" type="button">Load</button>
+  </div>
+  <div id="out" role="status" aria-live="polite">Click dark squares to place pieces (empty → white man → white king → black man → black king).</div>
+</main>
+<script>
+// Cell values: 0 empty, 1 white man, 2 white king, 3 black man, 4 black king.
+// Geometry matches Board.cs: square 1 is row 0 col 1, row 0 (top) is Black's side.
+const rowOf = s => Math.floor((s - 1) / 4);
+const colOf = s => ((s - 1) % 4) * 2 + (rowOf(s) % 2 === 0 ? 1 : 0);
+const squareAt = (r, c) => (r < 0 || r > 7 || c < 0 || c > 7 || (r % 2 === 0) !== (c % 2 === 1)) ? 0 : r * 4 + (c >> 1) + 1;
+
+function toPdn(cells, side) {
+  const list = (white) => { // cells is indexed 1..32
+    const out = [];
+    for (let s = 1; s <= 32; s++) {
+      const v = cells[s];
+      if (v && (v <= 2) === white) out.push((v % 2 === 0 ? 'K' : '') + s);
+    }
+    return (white ? 'W' : 'B') + out.join(',');
+  };
+  return `${side}:${list(true)}:${list(false)}`;
+}
+
+function fromPdn(text) {
+  const parts = text.trim().split(':');
+  if (parts.length !== 3 || !/^[WB]$/.test(parts[0])) throw new Error('Expected format B:W18,19,K22:B1,5');
+  const cells = new Array(33).fill(0);
+  for (const part of parts.slice(1)) {
+    const white = part[0] === 'W';
+    if (!white && part[0] !== 'B') throw new Error('Piece list must start with W or B');
+    for (const item of part.slice(1).split(',').filter(Boolean)) {
+      const m = /^(K?)(\d+)$/.exec(item.trim());
+      const s = m && +m[2];
+      if (!m || s < 1 || s > 32 || cells[s]) throw new Error(`Bad square '${item}'`);
+      cells[s] = (white ? 1 : 3) + (m[1] ? 1 : 0);
+    }
+  }
+  return { side: parts[0], cells };
+}
+
+// Squares of a move path, the squares jumped over ("x" moves), for highlighting.
+function parseMove(move) {
+  const path = move.split(/[-x]/).map(Number);
+  const jumped = [];
+  if (move.includes('x')) for (let i = 1; i < path.length; i++) {
+    jumped.push(squareAt((rowOf(path[i - 1]) + rowOf(path[i])) / 2, (colOf(path[i - 1]) + colOf(path[i])) / 2));
+  }
+  return { path, jumped };
+}
+
+if (typeof document !== 'undefined') {
+  const $ = id => document.getElementById(id);
+  const board = $('board'), out = $('out');
+  let cells = new Array(33).fill(0);
+  let marks = {};
+
+  const label = v => ['empty', 'white man', 'white king', 'black man', 'black king'][v];
+
+  function render() {
+    board.replaceChildren();
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+      const s = squareAt(r, c);
+      if (!s) { board.append(Object.assign(document.createElement('div'), { className: 'l' })); continue; }
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `d ${marks[s] || ''}`;
+      b.setAttribute('role', 'gridcell');
+      b.setAttribute('aria-label', `Square ${s}, ${label(cells[s])}${marks[s] ? ', ' + marks[s] : ''}`);
+      b.innerHTML = `<span class="n">${s}</span>`;
+      if (cells[s]) {
+        const p = document.createElement('span');
+        p.className = 'p ' + (cells[s] <= 2 ? 'w' : 'b');
+        p.textContent = cells[s] % 2 === 0 ? 'K' : '';
+        b.append(p);
+      }
+      b.onclick = () => { cells[s] = (cells[s] + 1) % 5; marks = {}; sync(); };
+      board.append(b);
+    }
+  }
+
+  function sync() { $('pdn').value = toPdn(cells, $('side').value); render(); }
+  function say(text, error) { out.textContent = text; out.className = error ? 'err' : ''; }
+
+  $('start').onclick = () => {
+    cells = new Array(33).fill(0);
+    for (let s = 1; s <= 12; s++) cells[s] = 3;
+    for (let s = 21; s <= 32; s++) cells[s] = 1;
+    marks = {}; sync();
+  };
+  $('clear').onclick = () => { cells = new Array(33).fill(0); marks = {}; sync(); };
+  $('side').onchange = () => { $('pdn').value = toPdn(cells, $('side').value); };
+  $('load').onclick = () => {
+    try { const p = fromPdn($('pdn').value); cells = p.cells; $('side').value = p.side; marks = {}; sync(); say('Loaded.'); }
+    catch (e) { say(e.message, true); }
+  };
+
+  $('suggest').onclick = async () => {
+    const position = toPdn(cells, $('side').value);
+    $('pdn').value = position;
+    say('Thinking…');
+    try {
+      const res = await fetch('/v1/move/suggest', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId: 'checkers-8x8', state: { notation: 'PDN', position }, level: $('level').value })
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) return say(`${res.status}: ${body.error || res.statusText}`, true);
+
+      const { path, jumped } = parseMove(body.bestMove);
+      marks = {};
+      path.forEach(s => marks[s] = 'via');
+      marks[path[0]] = 'from';
+      marks[path[path.length - 1]] = 'to';
+      jumped.forEach(s => marks[s] = 'cap');
+      render();
+      say(`Best move: ${body.bestMove}\nPV: ${body.pv.join(' ')}\ndepth ${body.depth}, nodes ${body.nodes}, ` +
+          `tablebase ${body.info.tablebaseHit}, ${body.info.timeMs} ms, score/WDL ${body.scoreOrWDL}`);
+    } catch (e) { say('Request failed: ' + e.message, true); }
+  };
+
+  $('start').click();
+}
+</script>
+</body>
+</html>
