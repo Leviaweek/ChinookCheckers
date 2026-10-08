@@ -66,9 +66,11 @@ public sealed class KingsRowEngine: IDisposable
 
     public string GameType() => RequireCommand("get gametype");
     
-    public async Task<MoveResult> GetMoveAsync(Position position, double softMaxTime, double hardMaxTime)
+    public async Task<MoveResult> GetMoveAsync(Position position, double softMaxTime, double hardMaxTime, CancellationToken ct = default)
     {
-        using var timer = new CancellationTokenSource(TimeSpan.FromSeconds(hardMaxTime));
+        // Either the hard time limit or the caller cancelling makes the engine return its best move so far.
+        using var timer = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timer.CancelAfter(TimeSpan.FromSeconds(hardMaxTime));
         
         // Resharper disable once MethodSupportsCancellation
         return await Task.Run(() =>
@@ -86,9 +88,9 @@ public sealed class KingsRowEngine: IDisposable
         });
     }
     
-    public async Task<SearchResult> SearchAsync(Position position, SearchLimits limits)
+    public async Task<SearchResult> SearchAsync(Position position, SearchLimits limits, CancellationToken ct = default)
     {
-        var move = await GetMoveAsync(position, limits.SoftTimeMs / 1000.0, limits.HardTimeMs / 1000.0);
+        var move = await GetMoveAsync(position, limits.SoftTimeMs / 1000.0, limits.HardTimeMs / 1000.0, ct);
         var info = SearchStatusParser.Parse(move.Status);
 
         var tablebaseHit = position.PieceCount <= TablebasePieces && move.Result != NativeMoveResult.Unknown;

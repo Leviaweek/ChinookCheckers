@@ -121,6 +121,28 @@ Section("9. SearchAsync (tablebase hit and strong level)");
         $"best={strong.BestMove} depth={strong.Depth} nodes={strong.Nodes} pv={string.Join(" ", strong.Pv)} {sw.ElapsedMilliseconds} ms");
 }
 
+Section("10. EnginePool (2 workers)");
+{
+    using var pool = EnginePool.Create(args[0], args.Length > 1 ? args[1] : "", 256);
+    Check("pool has 2 live workers", pool.LiveWorkers == 2);
+
+    var sw = Stopwatch.StartNew();
+    var results = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ =>
+        pool.RunAsync(Position.Parse(midgame), new SearchLimits(0, 300, 350))));
+    sw.Stop();
+
+    Check("4 parallel requests all answer with a move", results.All(r => r.BestMove.Length > 0),
+        $"{sw.ElapsedMilliseconds} ms, depths={string.Join(",", results.Select(r => r.Depth))}");
+    Check("4 requests on 2 workers take about two search rounds", sw.ElapsedMilliseconds is > 500 and < 1100, $"{sw.ElapsedMilliseconds} ms");
+
+    using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+    var blocker = pool.RunAsync(Position.Parse(midgame), new SearchLimits(0, 2000, 2000));
+    var blocker2 = pool.RunAsync(Position.Parse(midgame), new SearchLimits(0, 2000, 2000));
+    var waiting = Record.ExceptionAsync(() => pool.RunAsync(Position.Parse(midgame), new SearchLimits(0, 300, 350), cts.Token));
+    Check("request cancelled while queued throws OperationCanceledException", await waiting is OperationCanceledException);
+    await Task.WhenAll(blocker, blocker2);
+}
+
 Console.WriteLine($"\nFailures: {failures}");
 return failures == 0 ? 0 : 1;
 
@@ -182,4 +204,12 @@ void PrintInfo(string title, MoveResult result, long ms)
     Console.WriteLine($"  after:  {result.After.ToPdnString()}");
     Console.WriteLine($"  vacated=[{string.Join(",", vacated)}] occupied=[{string.Join(",", occupied)}]");
     Console.WriteLine($"  status: '{result.Status}'");
+}
+static class Record
+{
+    public static async Task<Exception?> ExceptionAsync(Func<Task> action)
+    {
+        try { await action(); return null; }
+        catch (Exception e) { return e; }
+    }
 }
