@@ -102,6 +102,9 @@ public sealed class Position
     {
         return $"{SideToMove.ToPdnString()}:{FormatPieces(Cell.White)}:{FormatPieces(Cell.Black)}";
     }
+
+    /// <summary>Normalized cache key: pieces are sorted by square, white list first.</summary>
+    public string CanonicalKey => $"pdn:{ToPdnString()}";
     
     private string FormatPieces(Cell color)
     {

@@ -200,4 +200,22 @@ public class PositionParserTests
     {
         Assert.Throws<FormatException>(() => PositionParser.Parse(pdn));
     }
+
+    // ---------- Canonical key ----------
+
+    [Fact]
+    public void TestCanonicalKey_DifferentOrderAndColorListOrder_ReturnsSameKey()
+    {
+        var a = PositionParser.Parse("B:W18,19,K22:B1,5");
+        var b = PositionParser.Parse("B:B5,1:WK22,19,18");
+
+        Assert.Equal("pdn:B:W18,19,K22:B1,5", a.CanonicalKey);
+        Assert.Equal(a.CanonicalKey, b.CanonicalKey);
+    }
+
+    [Fact]
+    public void TestCanonicalKey_DifferentSideToMove_ReturnsDifferentKeys()
+    {
+        Assert.NotEqual(PositionParser.Parse("W:W18:B1").CanonicalKey, PositionParser.Parse("B:W18:B1").CanonicalKey);
+    }
 }
