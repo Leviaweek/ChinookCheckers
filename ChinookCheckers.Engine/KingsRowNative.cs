@@ -83,7 +83,6 @@ internal sealed class KingsRowNative: IDisposable
 
             moveBuffer = Marshal.AllocHGlobal(MoveBufferBytes);
             
-            // for (var i = 0; i < MoveBufferBytes; i++) Marshal.WriteByte(moveBuffer, i, 0);
             
             return new KingsRowNative(library, getMove, engineCommand, playNow, moveBuffer);
         }
@@ -105,9 +104,11 @@ internal sealed class KingsRowNative: IDisposable
             throw new ArgumentException($"Command string is too long; must be less than {CommandBufferBytes} bytes.", nameof(command));
         
         Span<byte> commandBytes = stackalloc byte[CommandBufferBytes];
+        commandBytes.Clear();
         Encoding.ASCII.GetBytes(command, commandBytes);
 
         Span<byte> replyBytes = stackalloc byte[ReplyBufferBytes];
+        replyBytes.Clear();
 
         int result;
         fixed (byte* c = commandBytes)

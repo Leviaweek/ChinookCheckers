@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using ChinookCheckers.Cli;
 using ChinookCheckers.Engine;
 using ChinookCheckers.Engine.Models;
 
@@ -63,12 +62,6 @@ var t = new Thread(() =>
 t.Start();
 t.Join();
 
-/*
-await CheckOpeningAsync("black opening move is legal", startBlack, whiteMoves: false,
-    ["9-13", "9-14", "10-14", "10-15", "11-15", "11-16", "12-16"]);
-await CheckOpeningAsync("white opening move is legal", startWhite, whiteMoves: true,
-    ["21-17", "22-17", "22-18", "23-18", "23-19", "24-19", "24-20"]);
-    */
 
 // ---------------------------------------------------------------
 Section("5. Middlegame (position from the task)");
@@ -159,26 +152,8 @@ async Task ExpectExactAsync(string title, string pdn, string expectedAfter)
     Console.WriteLine($"after: ({after}) (expected: {expectedAfter})");
     result.After.PrintBoard();
 
-    Console.WriteLine($"after: ({after}) (expected: {expectedAfter})");
-    
     Check(title, after == expectedAfter,
         $"before={pdn} after={after} expected={expectedAfter} " +
-        $"result={result.Result} status='{result.Status}' {ms} ms");
-}
-
-async Task CheckOpeningAsync(string title, string pdn, bool whiteMoves, HashSet<string> legalMoves)
-{
-    var (result, ms) = await RunAsync(pdn, 0.2, 2.0);
-    var (vacated, occupied) = Diff(result.Before, result.After);
-
-    var simple = vacated.Count == 1 && occupied.Count == 1;
-    var move = simple ? $"{vacated[0]}-{occupied[0]}" : "?";
-    var rightColor = simple && (whiteMoves
-        ? result.Before[vacated[0]].IsWhite()
-        : result.Before[vacated[0]].IsBlack());
-
-    Check(title, simple && rightColor && legalMoves.Contains(move) && result.After.PieceCount == 24,
-        $"move={move} vacated=[{string.Join(",", vacated)}] occupied=[{string.Join(",", occupied)}] " +
         $"result={result.Result} status='{result.Status}' {ms} ms");
 }
 

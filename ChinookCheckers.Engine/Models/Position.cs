@@ -34,13 +34,15 @@ public sealed class Position
     ///     25  26  27  28
     ///    29  30  31  32
     ///
-    /// The buffer must contain 64 elements, all initialized to zero.
+    /// The buffer must contain 64 elements; it is cleared first.
     /// </summary>
     /// <param name="boardBuffer"></param>
     public void WriteToBoard(Span<int> boardBuffer)
     {
         if (boardBuffer.Length != 64)
             throw new ArgumentException("Board buffer must be of length 64.", nameof(boardBuffer));
+        
+        boardBuffer.Clear();
         
         for (var index = 0; index < 32; index++)
         {
