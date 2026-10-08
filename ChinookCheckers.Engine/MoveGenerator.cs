@@ -53,6 +53,10 @@ public static class MoveGenerator
         return byEnds.Count == 1 ? byEnds[0] : null;
     }
 
+    /// <summary>Finds the legal move that produces <paramref name="after"/> (used to check an engine answer without relying on its notation).</summary>
+    public static Move? FindMoveLeadingTo(Position position, Position after) =>
+        LegalMoves(position).FirstOrDefault(m => position.Apply(m).ToPdnString() == after.ToPdnString());
+
     public static bool IsLegal(Position position, string pdnMove) => FindMove(position, pdnMove) != null;
 
     private static IEnumerable<(int Row, int Col)> Directions(Side side, Cell piece)

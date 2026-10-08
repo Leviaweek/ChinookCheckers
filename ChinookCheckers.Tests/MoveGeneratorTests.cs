@@ -101,4 +101,14 @@ public class MoveGeneratorTests
     {
         Assert.Equal(expected, MoveGenerator.IsLegal(Position.Parse(pdn), move));
     }
+
+    [Fact]
+    public void TestFindMoveLeadingTo_ResultingPosition_ReturnsThatMove()
+    {
+        var position = Position.Parse("W:W31:B27,19");
+        var after = Position.Parse("B:W15:B");
+
+        Assert.Equal("31x24x15", MoveGenerator.FindMoveLeadingTo(position, after)!.ToString());
+        Assert.Null(MoveGenerator.FindMoveLeadingTo(position, Position.Parse("B:W24:B19")));
+    }
 }

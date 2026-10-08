@@ -98,7 +98,12 @@ public sealed class KingsRowEngine: IDisposable
             ? move.Result switch { NativeMoveResult.Win => 1, NativeMoveResult.Loss => -1, _ => 0 }
             : info.Value ?? 0;
 
-        return new SearchResult(info.Pv.FirstOrDefault() ?? "", info.Pv, score, info.Nodes, info.Depth, tablebaseHit, move.After);
+        // The status move list is not reliable for ties and abbreviates multi-jumps, so trust the resulting position.
+        var legalMove = MoveGenerator.FindMoveLeadingTo(position, move.After);
+        var best = legalMove?.ToString() ?? info.Pv.FirstOrDefault() ?? "";
+        IReadOnlyList<string> pv = legalMove == null ? info.Pv : [best, ..info.Pv.Skip(1)];
+
+        return new SearchResult(best, pv, score, info.Nodes, info.Depth, tablebaseHit, move.After, legalMove);
     }
 
     private MoveResult GetMoveCore(Position position, double maxTime)

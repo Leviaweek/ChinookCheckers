@@ -143,6 +143,26 @@ Section("10. EnginePool (2 workers)");
     await Task.WhenAll(blocker, blocker2);
 }
 
+Section("11. Engine answers are legal moves");
+{
+    var cases = new[]
+    {
+        midgame, startBlack, startWhite, "W:W31:B27,19", "B:W18,19,22,25,27,28,30,32:B1,5,6,7,10,12,14,16",
+        "W:W22,23,24,25,26:B1,2,3,K12,K13", "B:W20,23,24,25,26,27:B1,2,3,K12,K13,K14", "W:WK31,K32,22:BK1,K5,14"
+    };
+
+    foreach (var pdn in cases)
+    {
+        var position = Position.Parse(pdn);
+        var result = await engine.SearchAsync(position, new SearchLimits(0, 100, 200));
+        var byNotation = MoveGenerator.FindMove(position, result.BestMove);
+        var byPosition = MoveGenerator.FindMoveLeadingTo(position, result.After);
+
+        Check($"legal: {pdn}", byPosition != null && result.BestMove == byPosition.ToString() && result.LegalMove != null,
+            $"best='{result.BestMove}' byNotation={byNotation} byPosition={byPosition}");
+    }
+}
+
 Console.WriteLine($"\nFailures: {failures}");
 return failures == 0 ? 0 : 1;
 
