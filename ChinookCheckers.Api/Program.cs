@@ -11,6 +11,9 @@ builder.Services.AddSingleton<MoveSuggestService>();
 
 var app = builder.Build();
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapGet("/healthz", (EngineHost host) =>
     host.Pool is { } pool
         ? Results.Ok(new { ok = true, workers = pool.LiveWorkers })
@@ -29,6 +32,19 @@ app.MapPost("/v1/move/suggest", async (SuggestRequest request, MoveSuggestServic
     catch (OperationCanceledException) when (!http.RequestAborted.IsCancellationRequested)
     {
         return Results.Json(new { error = "Timed out waiting for the engine." }, statusCode: 504);
+    }
+});
+
+app.MapPost("/v1/move/validate", (ValidateRequest request) =>
+{
+    try
+    {
+        var position = MoveSuggestService.ParsePosition(request.Position);
+        return Results.Ok(new ValidateResponse(!string.IsNullOrWhiteSpace(request.Move) && MoveGenerator.IsLegal(position, request.Move.Trim())));
+    }
+    catch (ApiException e)
+    {
+        return Results.Json(new { error = e.Message }, statusCode: e.StatusCode);
     }
 });
 
