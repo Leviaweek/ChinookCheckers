@@ -64,6 +64,10 @@ internal sealed class KingsRowNative: IDisposable
 
     public static KingsRowNative Create(string dllPath)
     {
+        // The engine loads weights_v4.bin, Kingsrow.odb etc. from the current directory; without them a search crashes.
+        dllPath = Path.GetFullPath(dllPath);
+        Directory.SetCurrentDirectory(Path.GetDirectoryName(dllPath)!);
+
         var library = NativeLibrary.Load(dllPath);
 
         nint playNow = 0;
