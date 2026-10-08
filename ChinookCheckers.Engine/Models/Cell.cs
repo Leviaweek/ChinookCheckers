@@ -1,7 +1,7 @@
-namespace ChinookCheckers.Engine;
+namespace ChinookCheckers.Engine.Models;
 
 [Flags]
-public enum Cell: byte
+public enum Cell: int
 {
     Free = 0,
     

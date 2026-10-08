@@ -1,6 +1,6 @@
 namespace ChinookCheckers.Engine.Models;
 
-public enum MoveResult
+public enum NativeMoveResult
 {
     Draw,
     Win,
@@ -8,3 +8,10 @@ public enum MoveResult
     Unknown
 }
 
+public class MoveResult
+{
+    public required NativeMoveResult Result { get; init; }
+    public required Position Before { get; init; }   
+    public required Position After { get; init; }
+    public required string Status { get; init; }
+}

@@ -3,7 +3,10 @@ using ChinookCheckers.Engine.Models;
 
 namespace ChinookCheckers.Engine;
 
-public static class PdnParser
+/// <summary>
+/// Parses a position from a PDN (Portable Draughts Notation) string.
+/// </summary>
+internal static class PositionParser
 {
     public static Position Parse(string pdn)
     {
@@ -81,12 +84,12 @@ public static class PdnParser
                 throw new FormatException("Invalid piece square in PDN.");
             }
             
-            if (position.Squares[square] != Cell.Free)
+            if (position[square] != Cell.Free)
             {
                 throw new FormatException("Duplicate piece square in PDN.");
             }
             
-            position.Squares[square] = color | (isKing ? Cell.King : Cell.Man);
+            position[square] = color | (isKing ? Cell.King : Cell.Man);
         }
 
         return color;
